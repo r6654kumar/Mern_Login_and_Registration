@@ -2,6 +2,7 @@ import express, { request } from 'express'
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
 import { SignUpInfo } from './models/signupModel.js'
+import bcrypt from 'bcryptjs'
 dotenv.config();
 const PORT = process.env.PORT
 const MONGODBURL = process.env.MONGODBURL
@@ -29,7 +30,7 @@ app.post('/signup', async (request, response) => {
             const newUser = {
                 name: request.body.name,
                 email: request.body.email,
-                password: request.body.password,
+                password: await bcrypt.hash(request.body.password, 10),
                 phone: request.body.phone,
                 gender: request.body.gender,
                 hearAbout: request.body.hearAbout,
@@ -46,24 +47,31 @@ app.post('/signup', async (request, response) => {
     }
 })
 //Login Logic
-app.post('/login',async(request,response)=>{
+app.post('/login', async (request, response) => {
     try {
-        const email=request.body.email
-        const password=request.body.password
-        console.log(`${email} and ${password}`);
-        const userEmail=await SignUpInfo.findOne({email});
-        if(userEmail.password===password){
-            response.send("Successfully Logged In");
-        }
-        else{
-            response.send("Invalid Credentials");  //TODO: Add HomeScreen Route
+        const email = request.body.email;
+        const password = request.body.password;
+        const userEmail = await SignUpInfo.findOne({ email });
+
+        if (userEmail) {
+            const passwordMatch = await bcrypt.compare(password, userEmail.password);
+            if (passwordMatch) {
+                response.send("Successfully Logged In");
+            } else {
+                response.send("Invalid Credentials");
+                // TODO: Add HomeScreen Route
+            }
+        } else {
+            response.send("Invalid Credentials");
+            // TODO: Add HomeScreen Route
         }
 
     } catch (error) {
-        console.log(`Error:${error}`);
+        console.log(`Error: ${error}`);
         response.send("Invalid Login");
     }
-})
+});
+
 mongoose.connect(MONGODBURL).then(() => {
     console.log("Successfully connected to database");
     app.listen(PORT, () => {
